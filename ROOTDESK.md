@@ -12,6 +12,9 @@ Este repositorio contiene el codigo fuente completo, incluido `libs/hbb_common`
 | `libs/hbb_common/src/config.rs` | Servidor por defecto `id.rootinc.mx`; clave publica del servidor propio |
 | `src/common.rs` | API por defecto `https://rustdesk.rootinc.mx`; comprobacion de actualizaciones desactivada |
 | `libs/hbb_common/src/lib.rs` | URL de version apunta al servidor propio, no a `api.rustdesk.com` |
+| `libs/hbb_common/src/config.rs` | Nombre de la aplicacion `RootDesk` (servicio, carpetas, instalador) |
+| `src/hbbs_http/sync.rs` | El panel puede entregar la contrasena permanente (modo desatendido) en la respuesta del latido |
+| `res/*.ico`, `res/*.png`, `flutter/assets/{icon,logo}.png`, `flutter/windows/runner/` | Icono y textos de recursos de RootDesk |
 | `.github/workflows/` | Solo `rootdesk-windows.yml` (Windows x64, disparo manual) y sus dos workflows reutilizables |
 
 Las marcas RustDesk(R) pertenecen a sus titulares; la AGPL no concede derechos de marca.

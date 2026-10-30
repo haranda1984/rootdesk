@@ -271,6 +271,15 @@ async fn start_hbbs_sync_async() {
                                 handle_config_options(strategy.config_options);
                             }
                         }
+                        // RootDesk: the panel delivers the unattended password of the device's owner
+                        // (empty clears it). It never goes through the options map, which is plain text.
+                        if let Some(password) = rsp.remove("permanent_password") {
+                            if let Some(password) = password.as_str() {
+                                if Config::set_permanent_password(password) {
+                                    log::info!("permanent password updated by strategy");
+                                }
+                            }
+                        }
                     }
                 }
             }
