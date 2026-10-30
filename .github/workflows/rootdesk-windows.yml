@@ -8,7 +8,7 @@ on:
         default: true
       upload-tag:
         type: string
-        default: "rootdesk-1.5.0-r2"
+        default: "rootdesk-1.5.0-r3"
 
 # Solo Windows x64. Derivado de flutter-build.yml (RustDesk 1.5.0, AGPL-3.0).
 permissions:

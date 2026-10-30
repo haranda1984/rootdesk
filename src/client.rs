@@ -378,6 +378,12 @@ impl Client {
         debug_assert!(peer == interface.get_id());
         interface.update_direct(None);
         interface.update_received(false);
+        // RootDesk: the open-source hbbs does not implement the TCP key exchange that a logged-in
+        // client requires before it sends its access token, so the handshake would wait for a
+        // server message that never comes ("Failed to secure tcp: deadline has elapsed"). hbbs
+        // ignores the token anyway; never send it to the rendezvous or relay servers.
+        let _ = token;
+        let token = "";
         match Self::_start(peer, key, token, conn_type, interface.clone()).await {
             Err(err) => {
                 let err_str = err.to_string();
