@@ -7,6 +7,9 @@ on:
   push:
     paths:
       - "flutter/lib/models/support_*.dart"
+      - "flutter/lib/models/staff_*.dart"
+      - "flutter/lib/common/widgets/staff_page.dart"
+      - "flutter/lib/edition.dart"
       - "flutter/lib/common/widgets/support_page.dart"
       - "flutter/lib/common/widgets/peer_tab_page.dart"
       - "flutter/lib/models/peer_tab_model.dart"
@@ -29,7 +32,7 @@ jobs:
         run: flutter pub get
       - name: Pruebas de la lógica de Soporte
         working-directory: flutter
-        run: flutter test test/support_logic_test.dart
+        run: flutter test test/support_logic_test.dart test/staff_logic_test.dart
       - name: Análisis de los archivos de Soporte
         working-directory: flutter
         run: |
@@ -37,9 +40,10 @@ jobs:
             lib/models/support_logic.dart lib/models/support_model.dart lib/common/widgets/support_page.dart \
             lib/common/widgets/peer_tab_page.dart lib/models/peer_tab_model.dart lib/desktop/pages/connection_page.dart \
             lib/common.dart lib/common/widgets/toolbar.dart \
+            lib/models/staff_logic.dart lib/models/staff_model.dart lib/common/widgets/staff_page.dart lib/edition.dart \
             > analyze.txt || true
           cat analyze.txt
           # El código generado por flutter_rust_bridge no existe aquí, así que solo cuentan los errores de nuestros archivos.
-          if grep -E "error •.*(support_|peer_tab_|connection_page|lib/common\.dart|toolbar\.dart)" analyze.txt | grep -v "uri_does_not_exist"; then
+          if grep -E "error •.*(support_|staff_|edition|peer_tab_|connection_page|lib/common\.dart|toolbar\.dart)" analyze.txt | grep -v "uri_does_not_exist"; then
             echo "Hay errores en los archivos de Soporte"; exit 1
           fi

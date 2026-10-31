@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/consts.dart';
+import 'package:flutter_hbb/edition.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:get/get.dart';
@@ -26,13 +27,13 @@ class PeerTabModel with ChangeNotifier {
   int get currentTab => _currentTab;
   int _currentTab = 0; // index in tabNames
   static const int maxTabCount = 6;
-  static const List<String> tabNames = [
+  static final List<String> tabNames = [
     'Recent sessions',
     'Favorites',
     'Discovered',
     'Address book',
     'Accessible devices',
-    'Support',
+    isStaffEdition ? 'Cases' : 'Support',
   ];
   static const List<IconData> icons = [
     Icons.access_time_filled,

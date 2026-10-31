@@ -7,7 +7,10 @@ import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/my_group.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
+import 'package:flutter_hbb/common/widgets/staff_page.dart';
 import 'package:flutter_hbb/common/widgets/support_page.dart';
+import 'package:flutter_hbb/edition.dart';
+import 'package:flutter_hbb/models/staff_model.dart';
 import 'package:flutter_hbb/models/support_model.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/popup_menu.dart';
@@ -69,8 +72,8 @@ class _PeerTabPageState extends State<PeerTabPage>
       ({dynamic hint}) => gFFI.groupModel.pull(force: hint == null),
     ),
     _TabEntry(
-      const SupportPage(),
-      ({dynamic hint}) => supportModel.refresh(),
+      isStaffEdition ? const StaffPage() : const SupportPage(),
+      ({dynamic hint}) => isStaffEdition ? staffModel.load() : supportModel.refresh(),
     ),
   ];
   RelativeRect? mobileTabContextMenuPos;
@@ -144,9 +147,9 @@ class _PeerTabPageState extends State<PeerTabPage>
   Widget _supportAwareIcon(int t, IconData icon, Color? color) {
     if (t != kSupportTabIndex) return Icon(icon, color: color);
     return ListenableBuilder(
-      listenable: supportModel,
+      listenable: isStaffEdition ? staffModel : supportModel,
       builder: (context, _) => Badge(
-        isLabelVisible: supportModel.unreadTotal > 0,
+        isLabelVisible: (isStaffEdition ? staffModel.alertas : supportModel.unreadTotal) > 0,
         smallSize: 8,
         child: Icon(icon, color: color),
       ),

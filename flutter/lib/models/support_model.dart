@@ -120,6 +120,11 @@ class SupportModel with ChangeNotifier {
     return parsed;
   }
 
+  /// Llamada autenticada al portal de tickets; la usan también las pantallas de la edición Soporte.
+  Future<http.Response> apiCall(String method, String path, {Object? body}) => _call(method, path, body: body);
+
+  dynamic apiJson(http.Response r, {int ok = 200}) => _json(r, ok: ok);
+
   Future<void> refresh({bool quiet = false}) async {
     if (!loggedIn) {
       tickets = const [];
