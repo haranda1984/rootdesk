@@ -291,13 +291,13 @@ class _StaffCasoDialogState extends State<_StaffCasoDialog> {
     try {
       final d = await staffModel.detalle(widget.caso.id);
       if (!mounted) return;
-      final creció = d.comentarios.length != _ultimaCantidad;
+      final crecio = d.comentarios.length != _ultimaCantidad;
       setState(() {
         _d = d;
         _error = '';
       });
       _ultimaCantidad = d.comentarios.length;
-      if (creció) _alFinal();
+      if (crecio) _alFinal();
     } on SupportException catch (e) {
       if (mounted && (!quiet || _d == null)) setState(() => _error = _textoError(e));
     } catch (_) {
