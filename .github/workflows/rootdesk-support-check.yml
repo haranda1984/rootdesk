@@ -36,9 +36,10 @@ jobs:
           flutter analyze --no-fatal-infos --no-fatal-warnings \
             lib/models/support_logic.dart lib/models/support_model.dart lib/common/widgets/support_page.dart \
             lib/common/widgets/peer_tab_page.dart lib/models/peer_tab_model.dart lib/desktop/pages/connection_page.dart \
+            lib/common.dart lib/common/widgets/toolbar.dart \
             > analyze.txt || true
           cat analyze.txt
           # El código generado por flutter_rust_bridge no existe aquí, así que solo cuentan los errores de nuestros archivos.
-          if grep -E "error •.*(support_|peer_tab_|connection_page)" analyze.txt | grep -v "uri_does_not_exist"; then
+          if grep -E "error •.*(support_|peer_tab_|connection_page|lib/common\.dart|toolbar\.dart)" analyze.txt | grep -v "uri_does_not_exist"; then
             echo "Hay errores en los archivos de Soporte"; exit 1
           fi
