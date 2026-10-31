@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/support_logic.dart';
 import 'package:http/http.dart' as http;
+
+import '../common.dart';
 
 enum SupportStatus { idle, loading, ready, noLogin, notConfigured, error }
 
@@ -14,12 +17,15 @@ enum SupportStatus { idle, loading, ready, noLogin, notConfigured, error }
 class SupportModel with ChangeNotifier {
   static const _pollInterval = Duration(seconds: 60);
   static const _timeout = Duration(seconds: 15);
+  static const _seenKey = 'support-seen';
 
   SupportStatus status = SupportStatus.idle;
   String errorMessage = '';
   List<TicketSummary> tickets = const [];
   Timer? _timer;
   String? _ticketsUrl;
+  Map<String, DateTime> _seen = {};
+  bool _seenLoaded = false;
 
   String get _token => bind.mainGetLocalOption(key: 'access_token');
 
@@ -27,6 +33,44 @@ class SupportModel with ChangeNotifier {
 
   /// Ticket cuyo permiso de conexión sin aceptar sigue vigente (el que vence más tarde).
   TicketSummary? get activeTicket => activeSupportTicket(tickets, DateTime.now());
+
+  // ---- mensajes sin leer (se recuerdan entre sesiones) ----
+
+  void _loadSeen() {
+    if (_seenLoaded) return;
+    _seenLoaded = true;
+    try {
+      final raw = bind.mainGetLocalOption(key: _seenKey);
+      if (raw.isNotEmpty) {
+        final m = jsonDecode(raw) as Map<String, dynamic>;
+        _seen = m.map((k, v) => MapEntry(k, DateTime.parse(v as String)));
+      }
+    } catch (e) {
+      debugPrint('support: could not read seen messages: $e');
+    }
+  }
+
+  bool unread(TicketSummary t) {
+    _loadSeen();
+    return hasUnread(t, _seen);
+  }
+
+  /// Cuántos tickets tienen una respuesta de soporte sin leer.
+  int get unreadTotal => tickets.where(unread).length;
+
+  /// La persona leyó la conversación hasta el último mensaje de soporte.
+  void markSeen(String id, DateTime? lastSupport) {
+    _loadSeen();
+    if (lastSupport == null) return;
+    final cur = _seen[id];
+    if (cur != null && !lastSupport.isAfter(cur)) return;
+    _seen[id] = lastSupport;
+    bind.mainSetLocalOption(
+        key: _seenKey, value: jsonEncode(_seen.map((k, v) => MapEntry(k, v.toUtc().toIso8601String()))));
+    notifyListeners();
+  }
+
+  // ---- red ----
 
   /// Consulta periódica mientras haya sesión: mantiene al día la lista y el aviso de permiso activo.
   void startPolling() {
@@ -92,8 +136,12 @@ class SupportModel with ChangeNotifier {
         status = SupportStatus.notConfigured;
       } else {
         final list = _json(await _call('GET', '/api/rootdesk/tickets')) as List;
-        tickets = list.map((e) => TicketSummary.fromJson(e as Map<String, dynamic>)).toList();
+        final before = unreadTotal;
+        tickets = sortTickets(list.map((e) => TicketSummary.fromJson(e as Map<String, dynamic>)).toList());
         status = SupportStatus.ready;
+        if (quiet && unreadTotal > before) {
+          BotToast.showText(text: translate('Support replied to your ticket'));
+        }
       }
     } on SupportException catch (e) {
       if (!quiet || status != SupportStatus.ready) {
@@ -148,8 +196,17 @@ class SupportModel with ChangeNotifier {
     return created;
   }
 
+  /// Conversación completa de un ticket; al leerla, sus respuestas de soporte quedan como vistas.
   Future<TicketDetail> detail(String id) async {
-    return TicketDetail.fromJson(_json(await _call('GET', '/api/rootdesk/tickets/$id')) as Map<String, dynamic>);
+    final d = TicketDetail.fromJson(_json(await _call('GET', '/api/rootdesk/tickets/$id')) as Map<String, dynamic>);
+    markSeen(id, d.ultimoSoporteEn);
+    return d;
+  }
+
+  /// La persona escribe un mensaje en la conversación de su ticket.
+  Future<void> sendMessage(String id, String text) async {
+    _json(await _call('POST', '/api/rootdesk/tickets/$id/comentarios', body: {'mensaje': text}), ok: 201);
+    await refresh(quiet: true);
   }
 
   Future<void> revoke(String id) async {

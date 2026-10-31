@@ -140,6 +140,19 @@ class _PeerTabPageState extends State<PeerTabPage>
     );
   }
 
+  // The support tab shows a dot while support has answered a ticket the person has not read yet.
+  Widget _supportAwareIcon(int t, IconData icon, Color? color) {
+    if (t != kSupportTabIndex) return Icon(icon, color: color);
+    return ListenableBuilder(
+      listenable: supportModel,
+      builder: (context, _) => Badge(
+        isLabelVisible: supportModel.unreadTotal > 0,
+        smallSize: 8,
+        child: Icon(icon, color: color),
+      ),
+    );
+  }
+
   Widget _createSwitchBar(BuildContext context) {
     final model = Provider.of<PeerTabModel>(context);
     var counter = -1;
@@ -175,7 +188,7 @@ class _PeerTabPageState extends State<PeerTabPage>
                         decoration: (hover.value
                             ? (selected ? decoBorder : deco)
                             : (selected ? decoBorder : null)),
-                        child: Icon(model.tabIcon(t), color: color)
+                        child: _supportAwareIcon(t, model.tabIcon(t), color)
                             .paddingSymmetric(horizontal: 4),
                       ).paddingSymmetric(horizontal: 4),
                       onTap: isOptionFixed(kOptionPeerTabIndex)

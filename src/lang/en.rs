@@ -304,5 +304,18 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Support access revoked", "Support access revoked"),
         ("Could not revoke, try again", "Could not revoke, try again"),
         ("Revoke", "Revoke"),
+        ("Open tickets", "Open tickets"),
+        ("Finished tickets", "Finished tickets"),
+        ("No messages yet", "No messages yet"),
+        ("messages", "messages"),
+        ("Support replied, tap to read", "Support replied, tap to read"),
+        ("Tap to open the conversation", "Tap to open the conversation"),
+        ("Support replied to your ticket", "Support replied to your ticket"),
+        ("This ticket is closed", "This ticket is closed"),
+        ("This ticket is closed, open a new one if you need anything else", "This ticket is closed, open a new one if you need anything else"),
+        ("Write a message to support", "Write a message to support"),
+        ("Your request", "Your request"),
+        ("You", "You"),
+        ("Send", "Send"),
     ].iter().cloned().collect();
 }

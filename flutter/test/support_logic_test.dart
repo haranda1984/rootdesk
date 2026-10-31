@@ -61,6 +61,81 @@ void main() {
     expect(c.soporteHasta, isNull);
   });
 
+  TicketSummary t2(String id, String estado, String actividad, {String? soporte}) => TicketSummary.fromJson({
+        'id': id,
+        'folio': 'RD-$id',
+        'titulo': 'T$id',
+        'estado': estado,
+        'creado_en': '2030-01-01T08:00:00Z',
+        'ultima_actividad_en': actividad,
+        'mensajes': 2,
+        'ultimo_soporte_en': soporte,
+      });
+
+  test('la lista pone primero lo que sigue en atención y, dentro de cada grupo, lo más reciente', () {
+    final list = [
+      t2('cerrado-nuevo', 'cerrado', '2030-01-01T11:00:00Z'),
+      t2('abierto-viejo', 'en_proceso', '2030-01-01T09:00:00Z'),
+      t2('abierto-nuevo', 'nuevo', '2030-01-01T10:30:00Z'),
+      t2('resuelto-viejo', 'resuelto', '2030-01-01T08:30:00Z'),
+    ];
+    expect(sortTickets(list).map((t) => t.id).toList(),
+        ['abierto-nuevo', 'abierto-viejo', 'cerrado-nuevo', 'resuelto-viejo']);
+  });
+
+  test('ordenar no modifica la lista original', () {
+    final list = [t2('a', 'cerrado', '2030-01-01T09:00:00Z'), t2('b', 'nuevo', '2030-01-01T08:00:00Z')];
+    sortTickets(list);
+    expect(list.first.id, 'a');
+  });
+
+  test('mensaje sin leer: soporte escribió después de lo último que se vio', () {
+    final t = t2('1', 'en_proceso', '2030-01-01T12:00:00Z', soporte: '2030-01-01T12:00:00Z');
+    expect(hasUnread(t, {}), isTrue);
+    expect(hasUnread(t, {'1': DateTime.utc(2030, 1, 1, 11)}), isTrue);
+    expect(hasUnread(t, {'1': DateTime.utc(2030, 1, 1, 12)}), isFalse);
+    expect(hasUnread(t2('2', 'nuevo', '2030-01-01T12:00:00Z'), {}), isFalse);
+  });
+
+  test('un ticket sin mensajes de soporte no marca nada pendiente y el resumen lee los contadores', () {
+    final t = t2('1', 'nuevo', '2030-01-01T12:00:00Z');
+    expect(t.mensajes, 2);
+    expect(t.ultimoSoporteEn, isNull);
+    expect(t.abierto, isTrue);
+    expect(t2('3', 'resuelto', '2030-01-01T12:00:00Z').abierto, isFalse);
+  });
+
+  test('el detalle sabe cuándo escribió soporte por última vez', () {
+    final d = TicketDetail.fromJson({
+      'id': '1',
+      'folio': 'RD-1',
+      'titulo': 'T',
+      'estado': 'en_proceso',
+      'descripcion': 'x',
+      'comentarios': [
+        {'autor': 'Yo', 'mensaje': 'a', 'creado_en': '2030-01-01T10:00:00Z', 'es_mio': true},
+        {'autor': 'Ana', 'mensaje': 'b', 'creado_en': '2030-01-01T11:00:00Z', 'es_mio': false},
+        {'autor': 'Yo', 'mensaje': 'c', 'creado_en': '2030-01-01T12:00:00Z', 'es_mio': true},
+      ],
+    });
+    expect(d.ultimoSoporteEn, DateTime.parse('2030-01-01T11:00:00Z').toLocal());
+    expect(d.comentarios.first.esMio, isTrue);
+  });
+
+  test('tiempo relativo en español', () {
+    final now = DateTime(2030, 1, 5, 12, 0);
+    expect(relativeTime(now.subtract(const Duration(seconds: 20)), now), 'hace un momento');
+    expect(relativeTime(now.subtract(const Duration(minutes: 5)), now), 'hace 5 min');
+    expect(relativeTime(now.subtract(const Duration(hours: 3)), now), 'hace 3 h');
+    expect(relativeTime(now.subtract(const Duration(hours: 30)), now), 'ayer');
+    expect(relativeTime(DateTime(2030, 1, 1, 8, 5), now), '01/01/2030');
+  });
+
+  test('fecha y hora de 24 horas, con ceros a la izquierda', () {
+    expect(formatDateTime(DateTime(2026, 10, 31, 1, 37)), '31/10/2026 01:37');
+    expect(formatDateTime(DateTime(2026, 3, 5, 13, 7)), '05/03/2026 13:07');
+  });
+
   test('estados en español', () {
     expect(ticketStateLabel('en_proceso'), 'En atención');
     expect(ticketStateLabel('en_espera_cliente'), 'Esperando tu respuesta');

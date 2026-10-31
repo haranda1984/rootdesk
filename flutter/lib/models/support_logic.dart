@@ -16,6 +16,8 @@ class SupportException implements Exception {
 
 DateTime? _date(dynamic v) => v is String ? DateTime.tryParse(v)?.toLocal() : null;
 
+const List<String> _closedStates = ['resuelto', 'cerrado', 'cancelado'];
+
 class TicketSummary {
   final String id;
   final String folio;
@@ -24,6 +26,15 @@ class TicketSummary {
   final DateTime? creadoEn;
   final DateTime? soporteHasta;
 
+  /// Lo más reciente entre el último cambio del ticket y el último mensaje.
+  final DateTime? actividadEn;
+
+  /// Mensajes visibles en la conversación (de la persona y de soporte).
+  final int mensajes;
+
+  /// Cuándo escribió soporte por última vez; null si nunca.
+  final DateTime? ultimoSoporteEn;
+
   const TicketSummary({
     required this.id,
     required this.folio,
@@ -31,6 +42,9 @@ class TicketSummary {
     required this.estado,
     this.creadoEn,
     this.soporteHasta,
+    this.actividadEn,
+    this.mensajes = 0,
+    this.ultimoSoporteEn,
   });
 
   factory TicketSummary.fromJson(Map<String, dynamic> j) => TicketSummary(
@@ -40,22 +54,32 @@ class TicketSummary {
         estado: (j['estado'] ?? '') as String,
         creadoEn: _date(j['creado_en']),
         soporteHasta: _date(j['soporte_hasta']),
+        actividadEn: _date(j['ultima_actividad_en']) ?? _date(j['actualizado_en']) ?? _date(j['creado_en']),
+        mensajes: (j['mensajes'] is int) ? j['mensajes'] as int : 0,
+        ultimoSoporteEn: _date(j['ultimo_soporte_en']),
       );
 
   /// El permiso de conexión sin aceptar sigue vigente.
   bool soporteActivo(DateTime now) => soporteHasta != null && soporteHasta!.isAfter(now);
+
+  /// Sigue en atención (no resuelto, cerrado ni cancelado).
+  bool get abierto => !_closedStates.contains(estado);
 }
 
 class TicketComment {
   final String autor;
   final String mensaje;
   final DateTime? creadoEn;
-  const TicketComment({required this.autor, required this.mensaje, this.creadoEn});
+
+  /// Lo escribió la propia persona (y no soporte).
+  final bool esMio;
+  const TicketComment({required this.autor, required this.mensaje, this.creadoEn, this.esMio = false});
 
   factory TicketComment.fromJson(Map<String, dynamic> j) => TicketComment(
         autor: (j['autor'] ?? '') as String,
         mensaje: (j['mensaje'] ?? '') as String,
         creadoEn: _date(j['creado_en']),
+        esMio: j['es_mio'] == true,
       );
 }
 
@@ -72,6 +96,16 @@ class TicketDetail {
             .map((c) => TicketComment.fromJson(c as Map<String, dynamic>))
             .toList(),
       );
+
+  /// Cuándo escribió soporte por última vez en esta conversación.
+  DateTime? get ultimoSoporteEn {
+    DateTime? best;
+    for (final c in comentarios) {
+      if (c.esMio || c.creadoEn == null) continue;
+      if (best == null || c.creadoEn!.isAfter(best)) best = c.creadoEn;
+    }
+    return best;
+  }
 }
 
 class TicketCategory {
@@ -108,6 +142,44 @@ TicketSummary? activeSupportTicket(List<TicketSummary> tickets, DateTime now) {
   }
   return best;
 }
+
+/// Orden de la lista: primero los que siguen en atención y después los terminados; dentro de cada
+/// grupo, el de actividad más reciente arriba. Cada ticket conserva su propia conversación (por id).
+List<TicketSummary> sortTickets(List<TicketSummary> tickets) {
+  final out = List<TicketSummary>.from(tickets);
+  int ms(TicketSummary t) => (t.actividadEn ?? t.creadoEn)?.millisecondsSinceEpoch ?? 0;
+  out.sort((a, b) {
+    if (a.abierto != b.abierto) return a.abierto ? -1 : 1;
+    return ms(b).compareTo(ms(a));
+  });
+  return out;
+}
+
+/// Hay un mensaje de soporte que la persona todavía no ha leído. [seen] guarda, por ticket, el
+/// último mensaje de soporte que ya vio.
+bool hasUnread(TicketSummary t, Map<String, DateTime> seen) {
+  final last = t.ultimoSoporteEn;
+  if (last == null) return false;
+  final s = seen[t.id];
+  return s == null || last.isAfter(s);
+}
+
+/// "hace 5 min", "hace 3 h", "ayer" o la fecha, en español.
+String relativeTime(DateTime d, DateTime now) {
+  final diff = now.difference(d);
+  if (diff.isNegative || diff.inSeconds < 60) return 'hace un momento';
+  if (diff.inMinutes < 60) return 'hace ${diff.inMinutes} min';
+  if (diff.inHours < 24) return 'hace ${diff.inHours} h';
+  if (diff.inHours < 48) return 'ayer';
+  return formatDate(d);
+}
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+String formatDate(DateTime d) => '${_two(d.day)}/${_two(d.month)}/${d.year}';
+
+/// Fecha y hora de 24 horas en la zona del equipo, por ejemplo "31/10/2026 13:37".
+String formatDateTime(DateTime d) => '${formatDate(d)} ${_two(d.hour)}:${_two(d.minute)}';
 
 /// Estado del ticket en español para mostrarlo.
 String ticketStateLabel(String estado) {
