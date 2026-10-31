@@ -1,0 +1,191 @@
+name: RootDesk macOS build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload-tag:
+        type: string
+        default: "rootdesk-mac-1.5.0-r1"
+      edition:
+        description: "cliente = la app para los clientes; staff = RootDesk Soporte (para el personal)"
+        type: choice
+        options:
+          - staff
+          - cliente
+        default: staff
+      arch:
+        description: "aarch64 = Mac con chip Apple (M1 o posterior); x86_64 = Mac con Intel"
+        type: choice
+        options:
+          - aarch64
+          - x86_64
+        default: aarch64
+      runner:
+        description: "mi-mac = el Mac registrado como runner propio (sin costo); github = runner de GitHub (los minutos de macOS cuentan x10)"
+        type: choice
+        options:
+          - mi-mac
+          - github
+        default: mi-mac
+
+# Solo macOS. Derivado de flutter-build.yml (RustDesk 1.5.0, AGPL-3.0), trabajo build-for-macOS.
+# Sin certificado de Apple: la app se firma "ad hoc" (sin Developer ID), por lo que Gatekeeper pide
+# autorizar la primera apertura (clic derecho > Abrir).
+permissions:
+  contents: write
+
+env:
+  MAC_RUST_VERSION: "1.81" # 1.81 is requred for macos, because of https://github.com/yury/cidre requires 1.81
+  FLUTTER_VERSION: "3.24.5"
+  TAG_NAME: "${{ inputs.upload-tag }}"
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
+  VERSION: "1.5.0"
+
+jobs:
+  generate-bridge:
+    uses: ./.github/workflows/bridge.yml
+
+  build-for-macOS:
+    name: ${{ inputs.edition }} ${{ inputs.arch }} (${{ inputs.runner }})
+    needs: [generate-bridge]
+    runs-on: ${{ fromJSON(inputs.runner == 'mi-mac' && (inputs.arch == 'aarch64' && '["self-hosted","macOS","ARM64"]' || '["self-hosted","macOS","X64"]') || (inputs.arch == 'aarch64' && '"macos-14"' || '"macos-15-intel"')) }}
+    env:
+      ARCH: ${{ inputs.arch }}
+      TARGET: ${{ inputs.arch == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+      # texture rendering stays on for mac; screencapturekit only exists on Apple silicon builds
+      EXTRA_BUILD_ARGS: ${{ inputs.arch == 'aarch64' && '--screencapturekit' || '' }}
+    steps:
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Install build runtime
+        run: |
+          brew install llvm create-dmg
+          # pkg-config may already be installed
+          if command -v pkg-config &>/dev/null; then
+              echo "pkg-config is already installed"
+          else
+              brew install pkg-config
+          fi
+
+      - name: Install NASM
+        if: inputs.arch == 'x86_64'
+        run: |
+          # NASM 2.16.x from the official release (brew installs NASM 3.x, which is incompatible);
+          # only needed for the x86_64 assembly in aom and friends.
+          wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/macosx/nasm-2.16.03-macosx.zip
+          unzip -o nasm-2.16.03-macosx.zip
+          sudo cp nasm-2.16.03/nasm /usr/local/bin/nasm
+          nasm --version
+
+      - name: Install flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Patch flutter
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          # on a runner that keeps its Flutter between runs the patch may already be there
+          if git apply --check ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff 2>/dev/null; then
+            git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+          fi
+
+      - name: Workaround for flutter issue
+        shell: bash
+        run: |
+          cd "$(dirname "$(which flutter)")"
+          # https://github.com/flutter/flutter/issues/133533
+          sed -i -e 's/_setFramesEnabledState(false);/\/\/_setFramesEnabledState(false);/g' ../packages/flutter/lib/src/scheduler/binding.dart
+          grep -n '_setFramesEnabledState(false);' ../packages/flutter/lib/src/scheduler/binding.dart
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: ${{ env.MAC_RUST_VERSION }}
+          targets: ${{ env.TARGET }}
+          components: "rustfmt"
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          prefix-key: macos-${{ inputs.arch }}
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Setup vcpkg with Github Actions binary cache
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
+        with:
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        run: |
+          if ! $VCPKG_ROOT/vcpkg \
+            install \
+            --x-install-root="$VCPKG_ROOT/installed"; then
+            find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
+              echo "$_1:"
+              echo "======"
+              cat "$_1"
+              echo "======"
+              echo ""
+            done
+            exit 1
+          fi
+
+      - name: Select edition
+        shell: bash
+        run: |
+          # The staff edition (RootDesk Soporte) is the same code with a different edition constant.
+          if [ "${{ inputs.edition }}" = "staff" ]; then
+            printf "const String kEdition = 'staff';\n\nbool get isStaffEdition => kEdition == 'staff';\n" > flutter/lib/edition.dart
+          fi
+          cat flutter/lib/edition.dart
+
+      - name: Build rootdesk
+        run: |
+          if [ "$ARCH" = "aarch64" ]; then
+            MIN_MACOS_VERSION="12.3"
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py
+            sed -i -e "s/platform :osx, '.*'/platform :osx, '${MIN_MACOS_VERSION}'/" flutter/macos/Podfile
+            sed -i -e "s/osx_minimum_system_version = \"[0-9]*.[0-9]*\"/osx_minimum_system_version = \"${MIN_MACOS_VERSION}\"/" Cargo.toml
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
+          fi
+          ./build.py --flutter --hwcodec --unix-file-copy-paste $EXTRA_BUILD_ARGS
+
+      - name: Sign the app ad hoc and create the dmg
+        run: |
+          APP=./flutter/build/macos/Build/Products/Release/RootDesk.app
+          test -d "$APP"
+          # build.py copies the service binary in after Xcode sealed the bundle, so seal it again.
+          bash ./.github/scripts/sign-macos-app.sh "$APP" - ./flutter/macos/Runner/Release.entitlements
+
+          prefijo="RootDesk"
+          if [ "${{ inputs.edition }}" = "staff" ]; then prefijo="RootDesk-Soporte"; fi
+          CREATE_DMG="$(readlink -f "$(command -v create-dmg)")"
+          sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
+          create-dmg --volname "$prefijo" --icon "RootDesk.app" 200 190 --hide-extension "RootDesk.app" --window-size 800 400 --app-drop-link 600 185 "$prefijo-${{ env.VERSION }}-${ARCH}.dmg" "$APP"
+          ls -la *.dmg
+
+      - name: Publish DMG package
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        with:
+          prerelease: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            RootDesk*-${{ env.VERSION }}-${{ inputs.arch }}.dmg
