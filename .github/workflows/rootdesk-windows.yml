@@ -9,6 +9,13 @@ on:
       upload-tag:
         type: string
         default: "rootdesk-1.5.0-r5"
+      edition:
+        description: "cliente = la app para los clientes; staff = RootDesk Soporte (para el personal)"
+        type: choice
+        options:
+          - cliente
+          - staff
+        default: cliente
 
 # Solo Windows x64. Derivado de flutter-build.yml (RustDesk 1.5.0, AGPL-3.0).
 permissions:
@@ -237,6 +244,15 @@ jobs:
         shell: bash
         run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
 
+      - name: Select edition
+        shell: bash
+        run: |
+          # The staff edition (RootDesk Soporte) is the same code with a different edition constant.
+          if [ "${{ inputs.edition }}" = "staff" ]; then
+            printf "const String kEdition = 'staff';\n\nbool get isStaffEdition => kEdition == 'staff';\n" > flutter/lib/edition.dart
+          fi
+          cat flutter/lib/edition.dart
+
       - name: Build rustdesk
         run: |
           # Windows: build RustDesk
@@ -365,7 +381,9 @@ jobs:
         shell: bash
         run: |
           cd SignOutput
-          for f in rustdesk-*; do mv "$f" "RootDesk-${f#rustdesk-}"; done
+          prefijo="RootDesk"
+          if [ "${{ inputs.edition }}" = "staff" ]; then prefijo="RootDesk-Soporte"; fi
+          for f in rustdesk-*; do mv "$f" "$prefijo-${f#rustdesk-}"; done
           ls -l
 
       - name: Publish Release
