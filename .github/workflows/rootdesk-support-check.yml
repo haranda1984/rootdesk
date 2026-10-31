@@ -1,0 +1,44 @@
+name: RootDesk support check
+
+# Comprobación rápida (unos minutos) de la sección Soporte, antes de gastar una compilación completa:
+# pruebas de la lógica y análisis de los archivos que toca.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "flutter/lib/models/support_*.dart"
+      - "flutter/lib/common/widgets/support_page.dart"
+      - "flutter/lib/common/widgets/peer_tab_page.dart"
+      - "flutter/lib/models/peer_tab_model.dart"
+      - "flutter/lib/desktop/pages/connection_page.dart"
+      - "flutter/test/**"
+      - ".github/workflows/rootdesk-support-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.5"
+          channel: stable
+          cache: true
+      - name: Dependencias
+        working-directory: flutter
+        run: flutter pub get
+      - name: Pruebas de la lógica de Soporte
+        working-directory: flutter
+        run: flutter test test/support_logic_test.dart
+      - name: Análisis de los archivos de Soporte
+        working-directory: flutter
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings \
+            lib/models/support_logic.dart lib/models/support_model.dart lib/common/widgets/support_page.dart \
+            lib/common/widgets/peer_tab_page.dart lib/models/peer_tab_model.dart lib/desktop/pages/connection_page.dart \
+            > analyze.txt || true
+          cat analyze.txt
+          # El código generado por flutter_rust_bridge no existe aquí, así que solo cuentan los errores de nuestros archivos.
+          if grep -E "error •.*(support_|peer_tab_|connection_page)" analyze.txt | grep -v "uri_does_not_exist"; then
+            echo "Hay errores en los archivos de Soporte"; exit 1
+          fi

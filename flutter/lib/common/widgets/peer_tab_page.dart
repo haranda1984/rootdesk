@@ -7,6 +7,8 @@ import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/my_group.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
+import 'package:flutter_hbb/common/widgets/support_page.dart';
+import 'package:flutter_hbb/models/support_model.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/widgets/popup_menu.dart';
 import 'package:flutter_hbb/desktop/widgets/material_mod_popup_menu.dart'
@@ -65,6 +67,10 @@ class _PeerTabPageState extends State<PeerTabPage>
         menuPadding: _menuPadding(),
       ),
       ({dynamic hint}) => gFFI.groupModel.pull(force: hint == null),
+    ),
+    _TabEntry(
+      const SupportPage(),
+      ({dynamic hint}) => supportModel.refresh(),
     ),
   ];
   RelativeRect? mobileTabContextMenuPos;
@@ -551,6 +557,8 @@ class _PeerTabPageState extends State<PeerTabPage>
 
   List<Widget> _landscapeRightActions(BuildContext context) {
     final model = Provider.of<PeerTabModel>(context);
+    // The support tab has its own buttons; search, sort and view options do not apply to it.
+    if (model.currentTab == kSupportTabIndex) return [];
     return [
       const PeerSearchBar().marginOnly(right: 13),
       _createRefresh(
@@ -575,6 +583,7 @@ class _PeerTabPageState extends State<PeerTabPage>
 
   List<Widget> _portraitRightActions(BuildContext context) {
     final model = Provider.of<PeerTabModel>(context);
+    if (model.currentTab == kSupportTabIndex) return [];
     final screenWidth = MediaQuery.of(context).size.width;
     final leftIconSize = Theme.of(context).iconTheme.size ?? 24;
     final leftActionsSize =
