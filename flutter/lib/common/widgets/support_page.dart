@@ -481,9 +481,11 @@ class _TicketChatDialogState extends State<_TicketChatDialog> {
     final estado = d?.resumen.estado ?? t.estado;
     final canWrite = d != null && d.resumen.estado != 'cerrado' && d.resumen.estado != 'cancelado';
     final active = d?.resumen.soporteActivo(DateTime.now()) ?? false;
-    return Dialog(
+    // AlertDialog and not Dialog: common.dart defines its own Dialog class.
+    return AlertDialog(
       insetPadding: const EdgeInsets.all(24),
-      child: SizedBox(
+      contentPadding: EdgeInsets.zero,
+      content: SizedBox(
         width: 560,
         height: 620,
         child: Column(children: [
