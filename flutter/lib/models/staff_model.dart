@@ -24,6 +24,7 @@ class StaffModel with ChangeNotifier {
   static const _respaldo = Duration(minutes: 5);
   static const _sinNoticias = Duration(seconds: 70); // el servidor manda un latido cada 25 s
   static const _seenKey = 'staff-seen';
+  static const _empresaKey = 'staff-filtro-empresa';
   static const _vistaApi = {
     StaffVista.mios: 'mios',
     StaffVista.sinAsignar: 'sin_asignar',
@@ -44,6 +45,20 @@ class StaffModel with ChangeNotifier {
   String? _ultimoEventoId;
   int _intentos = 0;
   final List<String> _vistos = [];
+
+  /// Empresa elegida en el filtro: `null` = todas, [kSinEmpresa] = clientes sin empresa, o el id de una empresa.
+  String? filtroEmpresa;
+
+  Iterable<StaffCaso> get todosLosCasos => casos.values.expand((l) => l);
+
+  /// Los casos de una vista con el filtro de empresa aplicado.
+  List<StaffCaso> casosDe(StaffVista v) => filtrarPorEmpresa(casos[v] ?? const <StaffCaso>[], filtroEmpresa);
+
+  void setFiltroEmpresa(String? v) {
+    filtroEmpresa = v;
+    bind.mainSetLocalOption(key: _empresaKey, value: v ?? '');
+    notifyListeners();
+  }
 
   /// Caso que la persona pidió abrir desde una notificación; la pantalla de Casos lo abre y lo borra.
   String? casoPendiente;
@@ -101,6 +116,10 @@ class StaffModel with ChangeNotifier {
   Future<dynamic> _get(String path) async => supportModel.apiJson(await supportModel.apiCall('GET', path));
 
   Future<void> start() async {
+    if (filtroEmpresa == null) {
+      final guardado = bind.mainGetLocalOption(key: _empresaKey);
+      if (guardado.isNotEmpty) filtroEmpresa = guardado;
+    }
     _timer ??= Timer.periodic(_respaldo, (_) {
       if (supportModel.loggedIn) load(quiet: true);
     });

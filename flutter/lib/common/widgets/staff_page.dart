@@ -142,8 +142,8 @@ class _StaffPageState extends State<StaffPage> {
 
   Widget _cuerpo(BuildContext context) {
     final yo = staffModel.yo!;
-    final mios = staffModel.casos[StaffVista.mios] ?? const <StaffCaso>[];
-    final sin = staffModel.casos[StaffVista.sinAsignar] ?? const <StaffCaso>[];
+    final mios = staffModel.casosDe(StaffVista.mios);
+    final sin = staffModel.casosDe(StaffVista.sinAsignar);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         Expanded(
@@ -159,13 +159,42 @@ class _StaffPageState extends State<StaffPage> {
         ),
         IconButton(tooltip: translate('Refresh'), onPressed: staffModel.load, icon: const Icon(Icons.refresh)),
       ]),
+      if (staffModel.vista != StaffVista.equipo) _filtroEmpresa(context),
       const SizedBox(height: 4),
       Expanded(child: staffModel.vista == StaffVista.equipo ? _equipo(context) : _lista(context)),
     ]);
   }
 
+  /// Selector de empresa; solo aparece si hay casos de alguna empresa.
+  Widget _filtroEmpresa(BuildContext context) {
+    final todos = staffModel.todosLosCasos;
+    final opciones = empresasDe(todos);
+    final sin = hayCasosSinEmpresa(todos);
+    if (opciones.isEmpty) return const SizedBox.shrink();
+    final actual = staffModel.filtroEmpresa;
+    final existe = actual == null || actual == kSinEmpresa || opciones.any((o) => o.id == actual);
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      child: Row(children: [
+        Icon(Icons.business, size: 16, color: Theme.of(context).hintColor),
+        const SizedBox(width: 6),
+        DropdownButton<String?>(
+          value: existe ? actual : null,
+          isDense: true,
+          underline: const SizedBox.shrink(),
+          items: [
+            DropdownMenuItem<String?>(value: null, child: Text(translate('All companies'))),
+            for (final o in opciones) DropdownMenuItem<String?>(value: o.id, child: Text(o.nombre)),
+            if (sin) DropdownMenuItem<String?>(value: kSinEmpresa, child: Text(translate('No company'))),
+          ],
+          onChanged: staffModel.setFiltroEmpresa,
+        ),
+      ]),
+    );
+  }
+
   Widget _lista(BuildContext context) {
-    final casos = staffModel.casos[staffModel.vista] ?? const <StaffCaso>[];
+    final casos = staffModel.casosDe(staffModel.vista);
     if (casos.isEmpty) return _mensaje(translate('No cases here'));
     if (staffModel.vista != StaffVista.enCurso) {
       return ListView(children: [for (final c in casos) _tarjeta(context, c)]);
@@ -209,6 +238,7 @@ class _StaffPageState extends State<StaffPage> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Wrap(spacing: 8, runSpacing: 2, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  if (c.empresaNombre.isNotEmpty) _StaffEtiqueta(c.empresaNombre, Colors.indigo.shade700),
                   Text(c.folio, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   _StaffEtiqueta(ticketStateLabel(c.estado), _colorEstado(c.estado)),
                   _StaffEtiqueta(prioridadLabel(c.prioridad), _colorPrioridad(c.prioridad)),
@@ -466,7 +496,7 @@ class _StaffCasoDialogState extends State<_StaffCasoDialog> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  '${translate('Customer')}: ${d.clienteNombre}'
+                  '${d.empresa.isNotEmpty ? '${translate('Company')}: ${d.empresa} · ' : ''}${translate('Customer')}: ${d.clienteNombre}'
                   '${d.rustdeskId != null ? ' · ${d.equipoNombre ?? ''} (ID ${d.rustdeskId})' : ''}'
                   ' · ${translate('Responsible')}: ${d.responsable?.nombre ?? translate('Unassigned')}'
                   '${d.invitados.isNotEmpty ? ' · ${translate('Invited')}: ${d.invitados.map((e) => e.nombre).join(', ')}' : ''}',

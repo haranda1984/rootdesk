@@ -98,6 +98,17 @@ void main() {
       expect(r.titulo, 'New case · TCK-9');
       expect(r.cuerpo, 'Luis: No imprime');
     });
+    test('con empresa, la empresa va en el título del mensaje y al inicio del cuerpo de los casos', () {
+      const conEmpresa = StaffAviso(id: '1', tipo: TipoAviso.mensajeCliente, ticketId: 't', folio: 'TCK-9', titulo: 'No imprime', de: 'Luis', mensaje: 'Sigue igual', empresa: 'Acme');
+      expect(textoAviso(conEmpresa, t).titulo, 'Luis · Acme · TCK-9');
+      final nuevo = StaffAviso(id: '2', tipo: TipoAviso.casoNuevo, ticketId: 't', folio: 'TCK-9', titulo: 'No imprime', de: 'Luis', mensaje: 'x', empresa: 'Acme');
+      expect(textoAviso(nuevo, t).cuerpo, 'Acme · Luis: No imprime');
+    });
+    test('el aviso lee la empresa del servidor', () {
+      final a = StaffAviso.fromJson({'tipo': 'caso_nuevo', 'ticketId': 't', 'empresa': 'Acme'})!;
+      expect(a.empresa, 'Acme');
+      expect(StaffAviso.fromJson({'tipo': 'caso_nuevo', 'ticketId': 't'})!.empresa, '');
+    });
     test('asignado e invitado', () {
       expect(textoAviso(a(TipoAviso.casoAsignado), t).titulo, 'A case was assigned to you · TCK-9');
       expect(textoAviso(a(TipoAviso.casoInvitado), t).cuerpo, 'Luis · No imprime');

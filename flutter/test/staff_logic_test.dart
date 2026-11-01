@@ -120,6 +120,53 @@ void main() {
     expect(f.horasRespuesta, 1.5);
   });
 
+  group('empresas', () {
+    final acme = {'empresa': {'id': 'e1', 'nombre': 'Acme'}};
+    final beta = {'empresa': {'id': 'e2', 'nombre': 'beta'}};
+
+    test('el caso lee su empresa, y queda vacía si no tiene', () {
+      expect(StaffCaso.fromJson(casoJson('1', extra: acme)).empresaNombre, 'Acme');
+      expect(StaffCaso.fromJson(casoJson('1', extra: acme)).empresaId, 'e1');
+      final sin = StaffCaso.fromJson(casoJson('2'));
+      expect(sin.empresaId, '');
+      expect(sin.empresaNombre, '');
+    });
+
+    test('empresasDe lista cada empresa una vez y por orden alfabético sin importar mayúsculas', () {
+      final casos = [
+        StaffCaso.fromJson(casoJson('1', extra: beta)),
+        StaffCaso.fromJson(casoJson('2', extra: acme)),
+        StaffCaso.fromJson(casoJson('3', extra: acme)),
+        StaffCaso.fromJson(casoJson('4')),
+      ];
+      expect(empresasDe(casos).map((e) => e.nombre), ['Acme', 'beta']);
+      expect(hayCasosSinEmpresa(casos), true);
+      expect(hayCasosSinEmpresa(casos.take(3)), false);
+    });
+
+    test('filtrarPorEmpresa: todas, una empresa o sin empresa', () {
+      final casos = [
+        StaffCaso.fromJson(casoJson('1', extra: acme)),
+        StaffCaso.fromJson(casoJson('2', extra: beta)),
+        StaffCaso.fromJson(casoJson('3')),
+      ];
+      expect(filtrarPorEmpresa(casos, null).map((c) => c.id), ['1', '2', '3']);
+      expect(filtrarPorEmpresa(casos, 'e2').map((c) => c.id), ['2']);
+      expect(filtrarPorEmpresa(casos, kSinEmpresa).map((c) => c.id), ['3']);
+      expect(filtrarPorEmpresa(casos, 'inexistente'), isEmpty);
+    });
+
+    test('el detalle trae el nombre de la empresa', () {
+      final d = StaffDetalle.fromJson({
+        'id': 'x',
+        'empresa': 'Acme',
+        'cliente': {'nombre': 'Ana', 'email': 'a@acme.com'},
+      });
+      expect(d.empresa, 'Acme');
+      expect(StaffDetalle.fromJson({'id': 'y'}).empresa, '');
+    });
+  });
+
   test('prioridades en español', () {
     expect(prioridadLabel('critica'), 'Crítica');
     expect(prioridadLabel('x'), 'x');

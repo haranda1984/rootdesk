@@ -20,6 +20,9 @@ class StaffAviso {
   final String de;
   final String mensaje;
 
+  /// Empresa del cliente; vacía si no tiene.
+  final String empresa;
+
   const StaffAviso({
     required this.id,
     required this.tipo,
@@ -28,6 +31,7 @@ class StaffAviso {
     required this.titulo,
     required this.de,
     required this.mensaje,
+    this.empresa = '',
   });
 
   /// `null` si el tipo es desconocido (un servidor más nuevo que la app) o faltan datos: se ignora sin romper nada.
@@ -44,6 +48,7 @@ class StaffAviso {
       titulo: s('titulo'),
       de: s('de'),
       mensaje: s('mensaje'),
+      empresa: s('empresa'),
     );
   }
 }
@@ -120,15 +125,16 @@ Duration esperaReconexion(int intentos) {
 
 /// Título y cuerpo del aviso; [t] traduce.
 ({String titulo, String cuerpo}) textoAviso(StaffAviso a, String Function(String) t) {
+  final empresa = a.empresa.isEmpty ? '' : '${a.empresa} · ';
   switch (a.tipo) {
     case TipoAviso.mensajeCliente:
-      return (titulo: '${a.de} · ${a.folio}', cuerpo: a.mensaje);
+      return (titulo: [a.de, if (a.empresa.isNotEmpty) a.empresa, a.folio].join(' · '), cuerpo: a.mensaje);
     case TipoAviso.casoNuevo:
-      return (titulo: '${t('New case')} · ${a.folio}', cuerpo: '${a.de}: ${a.titulo}');
+      return (titulo: '${t('New case')} · ${a.folio}', cuerpo: '$empresa${a.de}: ${a.titulo}');
     case TipoAviso.casoAsignado:
-      return (titulo: '${t('A case was assigned to you')} · ${a.folio}', cuerpo: '${a.de}: ${a.mensaje}');
+      return (titulo: '${t('A case was assigned to you')} · ${a.folio}', cuerpo: '$empresa${a.de}: ${a.mensaje}');
     case TipoAviso.casoInvitado:
-      return (titulo: '${t('You were invited to a case')} · ${a.folio}', cuerpo: '${a.de} · ${a.titulo}');
+      return (titulo: '${t('You were invited to a case')} · ${a.folio}', cuerpo: '$empresa${a.de} · ${a.titulo}');
   }
 }
 

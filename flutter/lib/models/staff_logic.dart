@@ -52,6 +52,10 @@ class StaffCaso {
   final String grupoClave;
   final String grupoNombre;
 
+  /// Empresa del cliente al crear el ticket; vacía si no tiene.
+  final String empresaId;
+  final String empresaNombre;
+
   const StaffCaso({
     required this.id,
     required this.folio,
@@ -70,10 +74,13 @@ class StaffCaso {
     this.ultimoClienteEn,
     this.grupoClave = '',
     this.grupoNombre = '',
+    this.empresaId = '',
+    this.empresaNombre = '',
   });
 
   factory StaffCaso.fromJson(Map<String, dynamic> j) {
     final grupo = j['grupo'] is Map<String, dynamic> ? j['grupo'] as Map<String, dynamic> : const <String, dynamic>{};
+    final empresa = j['empresa'] is Map<String, dynamic> ? j['empresa'] as Map<String, dynamic> : const <String, dynamic>{};
     return StaffCaso(
       id: j['id'] as String,
       folio: (j['folio'] ?? '') as String,
@@ -92,6 +99,8 @@ class StaffCaso {
       ultimoClienteEn: _d(j['ultimo_cliente_en']),
       grupoClave: (grupo['clave'] ?? '') as String,
       grupoNombre: (grupo['nombre'] ?? '') as String,
+      empresaId: (empresa['id'] ?? '') as String,
+      empresaNombre: (empresa['nombre'] ?? '') as String,
     );
   }
 
@@ -131,6 +140,7 @@ class StaffDetalle {
   final String? categoria;
   final String clienteNombre;
   final String clienteEmail;
+  final String empresa;
   final StaffPersona? responsable;
   final String? rustdeskId;
   final String? equipoNombre;
@@ -152,6 +162,7 @@ class StaffDetalle {
     this.categoria,
     required this.clienteNombre,
     required this.clienteEmail,
+    this.empresa = '',
     this.responsable,
     this.rustdeskId,
     this.equipoNombre,
@@ -177,6 +188,7 @@ class StaffDetalle {
       categoria: j['categoria'] as String?,
       clienteNombre: (cliente['nombre'] ?? '') as String,
       clienteEmail: (cliente['email'] ?? '') as String,
+      empresa: (j['empresa'] ?? '') as String,
       responsable: j['responsable'] is Map<String, dynamic> ? StaffPersona.fromJson(j['responsable'] as Map<String, dynamic>) : null,
       rustdeskId: j['rustdesk_id'] as String?,
       equipoNombre: j['equipo_nombre'] as String?,
@@ -270,6 +282,34 @@ bool clienteEscribioSinLeer(StaffCaso c, Map<String, DateTime> seen) {
 /// Cuántos casos tienen un mensaje del cliente sin leer.
 int casosConMensajeNuevo(List<StaffCaso> casos, Map<String, DateTime> seen) =>
     casos.where((c) => clienteEscribioSinLeer(c, seen)).length;
+
+/// Valor del filtro para "casos de clientes sin empresa".
+const String kSinEmpresa = '-';
+
+class EmpresaOpcion {
+  final String id;
+  final String nombre;
+  const EmpresaOpcion(this.id, this.nombre);
+}
+
+/// Empresas que aparecen en los casos (sin repetir y por orden alfabético), para el selector del filtro.
+List<EmpresaOpcion> empresasDe(Iterable<StaffCaso> casos) {
+  final porId = <String, String>{};
+  for (final c in casos) {
+    if (c.empresaId.isNotEmpty) porId[c.empresaId] = c.empresaNombre;
+  }
+  final lista = [for (final e in porId.entries) EmpresaOpcion(e.key, e.value)];
+  lista.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+  return lista;
+}
+
+bool hayCasosSinEmpresa(Iterable<StaffCaso> casos) => casos.any((c) => c.empresaId.isEmpty);
+
+/// Casos de la empresa elegida; `null` = todas y [kSinEmpresa] = los de clientes sin empresa.
+List<StaffCaso> filtrarPorEmpresa(List<StaffCaso> casos, String? empresaId) {
+  if (empresaId == null) return casos;
+  return casos.where((c) => empresaId == kSinEmpresa ? c.empresaId.isEmpty : c.empresaId == empresaId).toList();
+}
 
 String prioridadLabel(String p) {
   switch (p) {
