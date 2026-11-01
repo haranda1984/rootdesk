@@ -11,6 +11,23 @@ import 'package:window_manager/window_manager.dart';
 
 import '../common.dart';
 
+// FLASHWINFO de user32 (win32 5.x no lo trae): hace parpadear el botón de la barra de tareas.
+final class _FlashInfo extends Struct {
+  @Uint32()
+  external int cbSize;
+  @IntPtr()
+  external int hwnd;
+  @Uint32()
+  external int dwFlags;
+  @Uint32()
+  external int uCount;
+  @Uint32()
+  external int dwTimeout;
+}
+
+const _flashwAll = 3; // FLASHW_ALL: ícono de la barra de tareas y borde de la ventana
+const _flashwTimerNoFg = 12; // FLASHW_TIMERNOFG: hasta que la ventana pase al frente
+
 /// Avisos de la edición Soporte que salen de la ventana: notificación del sistema, número en el Dock (Mac),
 /// número en el título y parpadeo en la barra de tareas (Windows). Todo es opcional: si algo falla solo se registra.
 class StaffNotificaciones {
@@ -84,17 +101,18 @@ class StaffNotificaciones {
   /// Hace parpadear el botón de la barra de tareas hasta que la ventana pase al frente.
   static void _parpadear(String titulo) {
     final nombre = titulo.toNativeUtf16();
-    final info = calloc<w32.FLASHWINFO>();
+    final info = calloc<_FlashInfo>();
     try {
       final hwnd = w32.FindWindow(nullptr, nombre);
       if (hwnd == 0) return;
-      info.ref
-        ..cbSize = sizeOf<w32.FLASHWINFO>()
-        ..hwnd = hwnd
-        ..dwFlags = w32.FLASHW_ALL | w32.FLASHW_TIMERNOFG
-        ..uCount = 0
-        ..dwTimeout = 0;
-      w32.FlashWindowEx(info);
+      info.ref.cbSize = sizeOf<_FlashInfo>();
+      info.ref.hwnd = hwnd;
+      info.ref.dwFlags = _flashwAll | _flashwTimerNoFg;
+      info.ref.uCount = 0;
+      info.ref.dwTimeout = 0;
+      final flashWindowEx = DynamicLibrary.open('user32.dll')
+          .lookupFunction<Int32 Function(Pointer<_FlashInfo>), int Function(Pointer<_FlashInfo>)>('FlashWindowEx');
+      flashWindowEx(info);
     } catch (e) {
       debugPrint('staff: no se pudo hacer parpadear la barra de tareas: $e');
     } finally {
