@@ -216,6 +216,10 @@ class MainFlutterWindow: NSWindow {
                 case "terminate":
                     NSApplication.shared.terminate(self)
                     result(nil)
+                case "setBadge":
+                    // number of cases that need attention (empty string clears it)
+                    NSApp.dockTile.badgeLabel = (call.arguments as? String).flatMap { $0.isEmpty ? nil : $0 }
+                    result(nil)
                 case "canRecordAudio":
                     switch AVCaptureDevice.authorizationStatus(for: .audio) {
                     case .authorized:

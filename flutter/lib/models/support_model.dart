@@ -31,6 +31,11 @@ class SupportModel with ChangeNotifier {
 
   bool get loggedIn => _token.isNotEmpty;
 
+  /// Sesión del panel y dirección del portal, para quien abre su propia conexión (avisos en vivo de la edición Soporte).
+  String get token => _token;
+
+  Future<String?> portalUrl() => _loadTicketsUrl();
+
   /// Ticket cuyo permiso de conexión sin aceptar sigue vigente (el que vence más tarde).
   TicketSummary? get activeTicket => activeSupportTicket(tickets, DateTime.now());
 

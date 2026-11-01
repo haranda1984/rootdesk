@@ -851,5 +851,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Handoff note (optional)", "Nota de traspaso (opcional)"),
         ("A customer replied on your case", "Un cliente respondió en un caso tuyo"),
         ("There is a new unassigned case", "Hay un caso nuevo sin asignar"),
+        ("New case", "Caso nuevo"),
+        ("A case was assigned to you", "Te asignaron un caso"),
+        ("You were invited to a case", "Te invitaron a un caso"),
     ].iter().cloned().collect();
 }

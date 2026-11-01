@@ -75,6 +75,25 @@ class _StaffPageState extends State<StaffPage> {
     super.initState();
     staffModel.start();
     staffModel.load(quiet: true);
+    staffModel.addListener(_abrirPendiente);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _abrirPendiente());
+  }
+
+  @override
+  void dispose() {
+    staffModel.removeListener(_abrirPendiente);
+    super.dispose();
+  }
+
+  /// Si la persona llegó desde una notificación, abre directo la conversación de ese caso.
+  void _abrirPendiente() {
+    final id = staffModel.casoPendiente;
+    if (id == null || !mounted) return;
+    staffModel.casoPendiente = null;
+    final todos = staffModel.casos.values.expand((l) => l);
+    final caso = todos.cast<StaffCaso?>().firstWhere((c) => c!.id == id, orElse: () => null) ??
+        StaffCaso(id: id, folio: '', titulo: '', estado: '', prioridad: '', clienteNombre: '');
+    showDialog<void>(context: context, builder: (_) => _StaffCasoDialog(caso: caso));
   }
 
   @override
@@ -275,12 +294,21 @@ class _StaffCasoDialogState extends State<_StaffCasoDialog> {
   @override
   void initState() {
     super.initState();
+    staffModel.casoAbierto = widget.caso.id;
+    staffModel.casoActualizado.addListener(_alLlegarMensaje);
     _cargar();
     _timer = Timer.periodic(const Duration(seconds: 15), (_) => _cargar(quiet: true));
   }
 
+  /// Llegó un mensaje de este caso por el canal de avisos: se muestra sin esperar al refresco periódico.
+  void _alLlegarMensaje() {
+    if (staffModel.casoActualizado.value.startsWith('${widget.caso.id}|')) _cargar(quiet: true);
+  }
+
   @override
   void dispose() {
+    staffModel.casoActualizado.removeListener(_alLlegarMensaje);
+    if (staffModel.casoAbierto == widget.caso.id) staffModel.casoAbierto = null;
     _timer?.cancel();
     _input.dispose();
     _scroll.dispose();

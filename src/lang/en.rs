@@ -352,5 +352,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("A customer replied on your case", "A customer replied on your case"),
         ("There is a new unassigned case", "There is a new unassigned case"),
         ("Accept", "Accept"),
+        ("New case", "New case"),
+        ("A case was assigned to you", "A case was assigned to you"),
+        ("You were invited to a case", "You were invited to a case"),
     ].iter().cloned().collect();
 }
