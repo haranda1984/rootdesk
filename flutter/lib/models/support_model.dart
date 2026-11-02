@@ -9,6 +9,7 @@ import 'package:flutter_hbb/models/support_logic.dart';
 import 'package:http/http.dart' as http;
 
 import '../common.dart';
+import '../common/staff_notificaciones.dart';
 
 enum SupportStatus { idle, loading, ready, noLogin, notConfigured, error }
 
@@ -73,6 +74,7 @@ class SupportModel with ChangeNotifier {
     bind.mainSetLocalOption(
         key: _seenKey, value: jsonEncode(_seen.map((k, v) => MapEntry(k, v.toUtc().toIso8601String()))));
     notifyListeners();
+    StaffNotificaciones.actualizarInsignia(unreadTotal);
   }
 
   // ---- red ----
@@ -135,6 +137,7 @@ class SupportModel with ChangeNotifier {
       tickets = const [];
       status = SupportStatus.noLogin;
       notifyListeners();
+      StaffNotificaciones.actualizarInsignia(0);
       return;
     }
     if (!quiet) {
@@ -146,11 +149,14 @@ class SupportModel with ChangeNotifier {
         status = SupportStatus.notConfigured;
       } else {
         final list = _json(await _call('GET', '/api/rootdesk/tickets')) as List;
+        final habiaCargado = status == SupportStatus.ready;
         final before = unreadTotal;
         tickets = sortTickets(list.map((e) => TicketSummary.fromJson(e as Map<String, dynamic>)).toList());
         status = SupportStatus.ready;
-        if (quiet && unreadTotal > before) {
+        // La primera carga (al abrir la aplicación) solo pone el número; avisar es para lo que llega después.
+        if (quiet && habiaCargado && unreadTotal > before) {
           BotToast.showText(text: translate('Support replied to your ticket'));
+          _avisarAlSistema();
         }
       }
     } on SupportException catch (e) {
@@ -166,6 +172,14 @@ class SupportModel with ChangeNotifier {
       }
     }
     notifyListeners();
+    StaffNotificaciones.actualizarInsignia(unreadTotal);
+  }
+
+  /// Notificación del sistema cuando soporte responde y la persona no está mirando la aplicación.
+  Future<void> _avisarAlSistema() async {
+    if (await StaffNotificaciones.ventanaALaVista()) return;
+    await StaffNotificaciones.mostrar(
+        titulo: bind.mainGetAppNameSync(), cuerpo: translate('Support replied to your ticket'), alHacerClic: () {});
   }
 
   Future<List<TicketCategory>> categories() async {

@@ -10,6 +10,8 @@ import 'package:win32/win32.dart' as w32;
 import 'package:window_manager/window_manager.dart';
 
 import '../common.dart';
+import '../edition.dart';
+import 'insignia_windows.dart';
 
 // FLASHWINFO de user32 (win32 5.x no lo trae): hace parpadear el botón de la barra de tareas.
 final class _FlashInfo extends Struct {
@@ -28,8 +30,9 @@ final class _FlashInfo extends Struct {
 const _flashwAll = 3; // FLASHW_ALL: ícono de la barra de tareas y borde de la ventana
 const _flashwTimerNoFg = 12; // FLASHW_TIMERNOFG: hasta que la ventana pase al frente
 
-/// Avisos de la edición Soporte que salen de la ventana: notificación del sistema, número en el Dock (Mac),
-/// número en el título y parpadeo en la barra de tareas (Windows). Todo es opcional: si algo falla solo se registra.
+/// Avisos que salen de la ventana (los usan las dos ediciones): notificación del sistema, número en el Dock (Mac),
+/// globo con número en la barra de tareas (Windows), número en el título y parpadeo. Todo es opcional: si algo falla solo
+/// se registra.
 class StaffNotificaciones {
   static const _canalMac = MethodChannel('org.rustdesk.rustdesk/host');
   static bool _listo = false;
@@ -39,7 +42,8 @@ class StaffNotificaciones {
   static Future<void> _iniciar() async {
     if (_listo || !isDesktop) return;
     try {
-      await localNotifier.setup(appName: 'RootDesk Soporte', shortcutPolicy: ShortcutPolicy.requireCreate);
+      await localNotifier.setup(
+          appName: isStaffEdition ? 'RootDesk Soporte' : 'RootDesk', shortcutPolicy: ShortcutPolicy.requireCreate);
       _listo = true;
     } catch (e) {
       debugPrint('staff: no se pudo preparar las notificaciones del sistema: $e');
@@ -81,7 +85,8 @@ class StaffNotificaciones {
     }
   }
 
-  /// Número de casos que piden atención: Dock en Mac, título de la ventana y, si sube, parpadeo en Windows.
+  /// Número que piden atención (casos o respuestas sin leer): Dock en Mac, globo en la barra de tareas de Windows, título
+  /// de la ventana y, si sube, parpadeo en Windows.
   static Future<void> actualizarInsignia(int n) async {
     if (!isDesktop || n == _insignia) return;
     final subio = n > _insignia && _insignia >= 0;
@@ -92,18 +97,31 @@ class StaffNotificaciones {
       final titulo = tituloConInsignia(base, n);
       await windowManager.setTitle(titulo);
       _tituloActual = titulo;
-      if (isWindows && subio && !await ventanaALaVista()) _parpadear(titulo);
+      if (isWindows) {
+        final hwnd = _buscarVentana(titulo);
+        if (hwnd != 0) establecerInsigniaBarra(hwnd, n, descripcion: n > 0 ? '$n' : '');
+        if (subio && !await ventanaALaVista()) _parpadear(titulo);
+      }
     } catch (e) {
       debugPrint('staff: no se pudo actualizar la insignia: $e');
     }
   }
 
+  /// La ventana principal por su título (0 si no se encuentra).
+  static int _buscarVentana(String titulo) {
+    final nombre = titulo.toNativeUtf16();
+    try {
+      return w32.FindWindow(nullptr, nombre);
+    } finally {
+      calloc.free(nombre);
+    }
+  }
+
   /// Hace parpadear el botón de la barra de tareas hasta que la ventana pase al frente.
   static void _parpadear(String titulo) {
-    final nombre = titulo.toNativeUtf16();
     final info = calloc<_FlashInfo>();
     try {
-      final hwnd = w32.FindWindow(nullptr, nombre);
+      final hwnd = _buscarVentana(titulo);
       if (hwnd == 0) return;
       info.ref.cbSize = sizeOf<_FlashInfo>();
       info.ref.hwnd = hwnd;
@@ -117,7 +135,6 @@ class StaffNotificaciones {
       debugPrint('staff: no se pudo hacer parpadear la barra de tareas: $e');
     } finally {
       calloc.free(info);
-      calloc.free(nombre);
     }
   }
 
