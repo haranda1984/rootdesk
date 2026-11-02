@@ -10,7 +10,7 @@ Este repositorio contiene el codigo fuente completo, incluido `libs/hbb_common`
 | Archivo | Cambio |
 |---|---|
 | `libs/hbb_common/src/config.rs` | Servidor por defecto `id.rootinc.mx`; clave publica del servidor propio |
-| `src/common.rs` | API por defecto `https://rustdesk.rootinc.mx`; comprobacion de actualizaciones desactivada |
+| `src/common.rs` | API por defecto `https://rootdesk.rootinc.mx` (un dominio anterior `rustdesk.rootinc.mx` guardado en el equipo se cambia solo al nuevo); comprobacion de actualizaciones desactivada |
 | `libs/hbb_common/src/lib.rs` | URL de version apunta al servidor propio, no a `api.rustdesk.com` |
 | `libs/hbb_common/src/config.rs` | Nombre de la aplicacion `RootDesk` (servicio, carpetas, instalador) |
 | `src/client.rs` | La ficha de sesion del panel ya no se envia a hbbs/hbbr: el hbbs de codigo abierto no cifra ese canal y la conexion fallaba con "Failed to secure tcp" al estar con sesion iniciada |

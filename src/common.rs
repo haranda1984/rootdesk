@@ -1148,7 +1148,8 @@ fn get_api_server_(api: String, custom: String) -> String {
         }
     }
     if !api.is_empty() {
-        return api.to_owned();
+        // Equipos que guardaron el dominio anterior del panel pasan solos al nuevo (el anterior sigue activo).
+        return api.replace("//rustdesk.rootinc.mx", "//rootdesk.rootinc.mx");
     }
     let s0 = get_custom_rendezvous_server(custom);
     if !s0.is_empty() {
@@ -1159,7 +1160,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://rustdesk.rootinc.mx".to_owned()
+    "https://rootdesk.rootinc.mx".to_owned()
 }
 
 #[inline]
