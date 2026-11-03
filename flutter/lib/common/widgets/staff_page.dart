@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:bot_toast/bot_toast.dart';
 import 'package:flutter/material.dart';
@@ -466,13 +467,17 @@ class _StaffCasoDialogState extends State<_StaffCasoDialog> {
     final c = widget.caso;
     final d = _d;
     final estado = d?.estado ?? c.estado;
+    // En el teléfono el diálogo ocupa casi toda la pantalla y se achica con el teclado.
+    final pantalla = MediaQuery.sizeOf(context);
+    final margen = pantalla.width < 600 ? 8.0 : 24.0;
+    final libreAlto = pantalla.height - MediaQuery.viewInsetsOf(context).bottom - MediaQuery.paddingOf(context).vertical - 2 * margen;
     // AlertDialog and not Dialog: common.dart defines its own Dialog class.
     return AlertDialog(
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: EdgeInsets.all(margen),
       contentPadding: EdgeInsets.zero,
       content: SizedBox(
-        width: 700,
-        height: 680,
+        width: math.min(700.0, pantalla.width - 2 * margen),
+        height: math.min(680.0, math.max(libreAlto - 8, 240.0)),
         child: Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),

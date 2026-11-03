@@ -6,8 +6,11 @@ import 'package:get/get.dart';
 import '../../common.dart';
 import '../../common/widgets/chat_page.dart';
 import '../../models/platform_model.dart';
+import '../../edition.dart';
+import '../../models/staff_model.dart';
 import '../../models/state_model.dart';
 import 'connection_page.dart';
+import 'staff_mobile_page.dart';
 
 abstract class PageShape extends Widget {
   final String title = "";
@@ -42,17 +45,20 @@ class HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    if (isStaffEdition) staffModel.start();
     initPages();
   }
 
   void initPages() {
     _pages.clear();
+    // Edición del personal: los casos van primero y el teléfono solo controla equipos (no recibe conexiones).
+    if (isStaffEdition) _pages.add(StaffMobilePage());
     if (!bind.isIncomingOnly()) {
       _pages.add(ConnectionPage(
         appBarActions: [],
       ));
     }
-    if (isAndroid && !bind.isOutgoingOnly()) {
+    if (isAndroid && !bind.isOutgoingOnly() && !isStaffEdition) {
       _chatPageTabIndex = _pages.length;
       _pages.addAll([ChatPage(type: ChatPageType.mobileMain), ServerPage()]);
     }
