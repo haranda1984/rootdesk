@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compila RootDesk para iPhone en una Mac (Xcode + Homebrew ya instalados). Se corre desde la raiz del repositorio:
+# Compila RootDesk para iPhone en una Mac (Xcode + MacPorts ya instalados). Se corre desde la raiz del repositorio:
 #   bash rootdesk-tools/compilar-ios-mac.sh                      # edicion Soporte, sin firmar
 #   EDITION=staff TEAM_ID=ABCDE12345 bash rootdesk-tools/compilar-ios-mac.sh
 # Variables: EDITION=staff|cliente (por defecto staff), TEAM_ID (equipo de Apple para firmar; opcional), BUILD_NUMBER, FORCE_BRIDGE=1.
@@ -17,9 +17,15 @@ cd "$REPO"
 
 paso() { printf '\n== %s\n' "$*"; }
 
-paso "1/7 herramientas de Homebrew"
-command -v brew >/dev/null || { echo "Falta Homebrew: https://brew.sh"; exit 1; }
-brew install nasm yasm pkg-config cmake autoconf automake libtool cocoapods
+paso "1/7 herramientas del sistema (MacPorts; Homebrew ya no soporta Macs Intel)"
+export PATH="/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH"
+faltan=""
+for c in nasm yasm pkg-config cmake autoconf automake glibtool pod; do command -v "$c" >/dev/null || faltan="$faltan $c"; done
+if [ -n "$faltan" ]; then
+  echo "Faltan:$faltan"
+  echo "Instalalos con:  sudo port install nasm yasm pkgconfig cmake autoconf automake libtool cocoapods"
+  exit 1
+fi
 
 paso "2/7 Rust $RUST_VERSION y puente Flutter-Rust"
 if ! command -v rustup >/dev/null; then
