@@ -80,6 +80,11 @@ if [ "$EDITION" = "staff" ]; then
 else
   sed -i '' 's|com.carriez.flutterHbb|mx.rootinc.rootdesk|g' "$PBX"
 fi
+# Las cuentas gratuitas de Apple no permiten notificaciones push ni datos de Wi-Fi: sin esas capacidades la firma funciona.
+# Con la cuenta de pago de Apple Developer se corre con SIN_CAPACIDADES=0 para conservar las del proyecto original.
+if [ "${SIN_CAPACIDADES:-1}" = "1" ]; then
+  sed -i '' 's|Runner/Runner.entitlements|Runner/Runner-libre.entitlements|g' "$PBX"
+fi
 if [ -n "${TEAM_ID:-}" ]; then sed -i '' "s|DEVELOPMENT_TEAM = HZF9JMC8YN;|DEVELOPMENT_TEAM = $TEAM_ID;|g" "$PBX"; fi
 export PATH="$HERR/flutter-3.24.5/bin:$PATH"
 cd flutter
@@ -87,4 +92,7 @@ flutter pub get
 (cd ios && pod install)
 flutter build ios --release --no-codesign --build-name 1.5.0 --build-number "$BUILD_NUMBER"
 echo
-echo "LISTO: $(pwd)/build/ios/iphoneos/Runner.app (sin firmar). Siguiente: firmar y subir con Xcode (Runner.xcworkspace)."
+echo "LISTO: compilo bien (sin firmar)."
+echo "Para instalar en tu iPhone: 1) abre ios/Runner.xcworkspace en Xcode, elige Runner > Signing & Capabilities > tu Personal Team;"
+echo "2) con el iPhone conectado y en Modo de desarrollador, desde la carpeta flutter corre:"
+echo "   $HERR/flutter-3.24.5/bin/flutter run --release"
